@@ -8,12 +8,15 @@ import urllib.request
 import re
 import os
 import lxml
+from datetime import datetime
 
 # For user-pass
 import mechanize 
 import http.cookiejar
 
 from create_sqlite_table import Gate
+
+import html
 
 class Scraper:
     def __init__(self, url):
@@ -62,7 +65,7 @@ class Scraper:
         ''' Scrape all the articles for the first 25 pages '''
         article_count = 0
         # 25 pages worth of articles, each page has 51-52 articles
-        for i in range(1, 26):
+        for i in range(1, 27):
             url = self.base_url+'pages/4/?p='+str(i)
             soup_i = self.load_url(url)
             articles_soup = soup_i.find('tbody').find_all('tr')
@@ -70,50 +73,68 @@ class Scraper:
             for article in articles_soup:
                 article_url = 'http://uchicagogate.com'+article.find('a')['href']
                 article_soup = self.load_url(article_url)
-                if self.scrape_insert_article(article_soup):
+                if self.scrape_insert_article(article_soup, article_url):
+                    print(article_count)
                     article_count += 1
-        print("Successfully scraped {count} articles out of 1947".format(count=article_count))
+                    return
+
+        print("Successfully scraped {count} articles out of 1251".format(count=article_count))
                             
-    def scrape_insert_article(self, soup):
+    def scrape_insert_article(self, soup, article_url):
         '''' Scrape content and relevant metadata of an article 
         and insert into the database ''' 
         # Retrieve the relevant content: title, contributor, 
         # category, image_url, featured_image_caption, lede, body
-        fields = soup.find_all('div', {'class': 'input'})
+        objects = soup.find('ul', {'class': 'objects'})
         # title 
-        title = fields[0].find('input')['value']
-        # contributors 
-        contributors = fields[1].find('select').find('option').next
-        # image_url: links to /admin/images/990/
-        # image_url = fields[2].find('ul', {'class': 'actions'}).find('a')['href']
-        # lede = fields[4].find('textarea', {'id': 'id_lede'}).next
-        # body is stored as html
-        body = fields[5].find('textarea', {'id': 'body-0-value'}).next
+        title_li = objects.find('li', {'class': 'object full title required char_field'})
+        title = title_li.find('input')['value']
+        # classification
+        classification_li = objects.find_all('li', {'class': 'object collapsible multi-field'})[0]
+        # get all the contributors 
+        contributors_li = classification_li.find('select', {'id': 'id_contributors'}).find_all('option')
+        contributors = []
+        for contributor in contributors_li:
+            contributors.append(contributor.text.strip())
+        # get all the categories 
+        categories_li = classification_li.find('ul', {'id': 'id_categories-FORMS'}).select('option[selected]')
+        categories = []
+        for category in categories_li:
+            categories.append(category.text.strip())
+        # feature_image
+        image_li = objects.find_all('li', {'class': 'object collapsible multi-field'})[1]
+        image_field = image_li.find('ul', {'class': 'actions'})
+        image_url = ""
+        if image_field is not None: 
+            image_url = image_field.find('a')['href']
+        # image caption 
+        image_caption = image_li.find('li', {'class': 'char_field'}).find('div', {'class': 'input'}).text.strip()
+        # lede
+        lede_li = objects.find('li', {'class': 'object required char_field'})
+        lede = lede_li.find('div', {'class': 'input'}).find('textarea').text.strip()
+        # body 
+        body_li = objects.find('li', {'class': 'object required block_field stream-field'})
+        body = body_li.find('div', {'class': 'input'})
 
-        # NOTE: There is probably a better way to do this lol, but 
-        # some of these fields have embedded Javascript, so we're looking at the preview instead
-        # TODO: Identify multiple contributors 
+        # TODO: Date Published
+        # remove the edit 
+        base_url = article_url[:article_url.rindex("/", 0, -1)+1]
+        base_soup = self.load_url(base_url)
+        date = base_soup.find('div', {'class': 'human-readable-date'})['title']
+        datetime_str = datetime.strptime(date, '%d %b %Y %H:%M')
         # TODO: SEO fields? 
-
-        # preview 
-        # preview_soup = self.load_url('http://uchicagogate.com/admin/pages/1947/edit/preview/')
-        # category = preview_soup.find('div', {'class': 'kicker'}).find('a')['href']
-        # date = preview_soup.find('span', {'class': 'timestamp subheader'})
-        # image_caption = preview_soup.find('figure').find('figcaption').next
 
         params = {
             'title': title, 
-            'contributors': contributors, 
-            'category': None, 
-            'image_url': None,
-            'featured_image_caption': None, 
-            'lede': None, 
-            'body': body, 
-            'date': None
+            'contributors': str(contributors), 
+            'category': str(categories), 
+            'image_url': image_url,
+            'featured_image_caption': image_caption, 
+            'lede': lede, 
+            'body': str(body), 
+            'date': datetime_str
         }
-        print(params)
-        # self.db.add_new_articles(params)
-
+        self.db.add_new_articles(params)
         return True
     
 if __name__ == "__main__":

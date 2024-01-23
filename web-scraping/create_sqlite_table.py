@@ -9,14 +9,14 @@ class Gate:
         self.cur.execute('''CREATE TABLE IF NOT EXISTS
             gate_articles (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                title TEXT,
+                title TEXT NOT NULL,
                 contributors TEXT, 
                 category TEXT, 
                 image_url TEXT,
                 featured_image_caption TEXT,
-                lede TEXT,
+                lede TEXT NOT NULL,
                 body TEXT NOT NULL, 
-                date TEXT
+                date TIMESTAMP
                 )
                 ''')
         # Note to self: We may need to add more metadata columns (there are 
@@ -26,19 +26,30 @@ class Gate:
     def add_new_articles(self, params):
         ''' Adds a new article with all relevant metadata into the 
         gate_articles table '''
-        params = (
-            params['title'], 
-            params['contributors'], 
-            params['category'], 
-            params['image_url'], 
-            params['featured_image_caption'], 
-            params['lede'],
-            params['body'], 
-            params['date']
-            )
-        sql = '''INSERT INTO student_courses VALUES (NULL,?,?,?,?,?,?,?,?,?)'''
-        self.curr.execute(select_statement, params)
+        params = ({
+            "title": params['title'], 
+            "contributors": params['contributors'], 
+            "category": params['category'], 
+            "image_url": params['image_url'], 
+            "featured_image_caption": params['featured_image_caption'], 
+            "lede": params['lede'],
+            "body": params['body'], 
+            "date": params['date']
+        })
+
+        sql = '''INSERT INTO gate_articles VALUES 
+            (NULL,
+            :title,
+            :contributors,
+            :category,
+            :image_url,
+            :featured_image_caption,
+            :lede,
+            :body,
+            :date)'''
+        self.cur.execute(sql, params)
         self.conn.commit()
+        self.conn.close()
 
 
 
