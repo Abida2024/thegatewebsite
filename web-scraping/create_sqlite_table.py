@@ -49,7 +49,7 @@ class Gate:
             :date)'''
         self.cur.execute(sql, params)
         self.conn.commit()
-        self.conn.close()
+        # self.conn.close()
 
 
 

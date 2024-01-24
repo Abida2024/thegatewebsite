@@ -76,7 +76,6 @@ class Scraper:
                 if self.scrape_insert_article(article_soup, article_url):
                     print(article_count)
                     article_count += 1
-                    return
 
         print("Successfully scraped {count} articles out of 1251".format(count=article_count))
                             
@@ -120,8 +119,13 @@ class Scraper:
         # remove the edit 
         base_url = article_url[:article_url.rindex("/", 0, -1)+1]
         base_soup = self.load_url(base_url)
-        date = base_soup.find('div', {'class': 'human-readable-date'})['title']
-        datetime_str = datetime.strptime(date, '%d %b %Y %H:%M')
+        date_div = base_soup.find('div', {'class': 'human-readable-date'})
+        datetime_str = None
+        if date_div is not None:
+            date = date_div['title']
+            datetime_str = datetime.strptime(date, '%d %b %Y %H:%M')
+        else:
+            print("No date!")
         # TODO: SEO fields? 
 
         params = {
