@@ -51,5 +51,10 @@ class Gate:
         self.conn.commit()
         # self.conn.close()
 
+    def read_articles(self):
+        sql = '''SELECT * FROM gate_articles'''
+        res = self.cur.execute(sql)
+        rows = res.fetchall()
+        return rows
 
 
