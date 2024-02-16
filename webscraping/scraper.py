@@ -141,9 +141,52 @@ class Scraper:
         self.db.add_new_articles(params)
         return True
     
+    def scrape_contributors(self):
+        ''' Scrape all the contributors for the first 5 pages '''
+        contributor_count = 0
+        # 5 pages worth of people
+        for i in range(1, 6):
+            url = self.base_url+'contributors/contributor/?p='+str(i)
+            soup_i = self.load_url(url)
+            contributors_soup = soup_i.find('tbody').find_all('tr')
+            # scrape all the contributors on the given page
+            for person in contributors_soup:
+                person_url = 'http://uchicagogate.com'+person.find('a')['href']
+                person_soup = self.load_url(person_url)
+                if self.scrape_insert_contributor(person_soup, person_url):  # Call the correct method here
+                    print(contributor_count)
+                    contributor_count += 1
+
+        print("Successfully scraped {count} contributors.".format(count=contributor_count))
+    
+    def scrape_insert_contributor(self, soup, person_url):
+        '''' Scrape content and relevant metadata of an article 
+        and insert into the database ''' 
+        # Retrieve the relevant content: title, contributor, 
+        # category, image_url, featured_image_caption, lede, body
+        objects = soup.find('ul', {'class': 'objects'})
+        # name 
+        name_fc = objects.find('div', {'class': 'field-content'})
+        name_input = name_fc.find('input', {'type': 'text', 'name': 'name', 'id': 'id_name'})
+        name = name_input.get('value')
+        # body 
+        email_fc = objects.find('div', {'class': 'field email_field email_input'})
+        email_input = email_fc.find('input', {'type': 'email', 'name': 'email', 'id': 'id_email'})
+        email = email_input.get('value')
+        if not email: 
+            email = 'info@uchicagogate.com'
+        params = {
+            'name': name, 
+            'email': str(email)
+        }
+        self.db.add_person(params)
+        return True
+
+
 if __name__ == "__main__":
     scraper = Scraper(url='http://uchicagogate.com/admin/')
     login_url = 'http://uchicagogate.com/admin/login/?next=/admin/'
     scraper.authentication(login_url)
     scraper.load_url('http://uchicagogate.com/admin/')
-    scraper.scrape_articles()
+    # scraper.scrape_articles()
+    scraper.scrape_contributors()

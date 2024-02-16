@@ -19,6 +19,11 @@ class Gate:
                 date TIMESTAMP
                 )
                 ''')
+        self.cur.execute('''CREATE TABLE IF NOT EXISTS
+            gate_contributors (
+                name TEXT NOT NULL,
+                email TEXT NOT NULL
+            )''')  # Closing parenthesis was added here
         # Note to self: We may need to add more metadata columns (there are 
         # some SEO columns in the current backend)
         self.conn.commit()
@@ -51,8 +56,29 @@ class Gate:
         self.conn.commit()
         # self.conn.close()
 
+    def add_person(self, params):
+        ''' Adds a new article with all relevant metadata into the 
+        gate_contributors table '''
+        params = ({
+            "name": params['name'], 
+            "email": params['email']
+        })
+
+        sql = '''INSERT INTO gate_contributors VALUES 
+            (:name,
+            :email)'''
+        self.cur.execute(sql, params)
+        self.conn.commit()
+        # self.conn.close()
+
     def read_articles(self):
         sql = '''SELECT * FROM gate_articles '''
+        res = self.cur.execute(sql)
+        rows = res.fetchall()
+        return rows
+    
+    def read_contributors(self):
+        sql = '''SELECT * FROM gate_contributors '''
         res = self.cur.execute(sql)
         rows = res.fetchall()
         return rows
